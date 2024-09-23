@@ -1,0 +1,6 @@
+venv/
+
+*.pdf
+*.log
+*.aux
+*.docx
