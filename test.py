@@ -7,6 +7,9 @@ from sklearn.cluster import HDBSCAN, KMeans
 from fitz import Document, Page, Rect
 import os
 
+header_threshold = 0.1
+footer_threshold = 0.9
+
 def remove_hf(pdf_path):
 	# Load the document using PyMuPDF (fitz)
 	document = fitz.open(pdf_path)
@@ -36,8 +39,8 @@ def remove_hf(pdf_path):
 	quantile = 0.15
 	
 	# Calculate upper and lower quantiles
-	upper = np.floor(df['y0'].quantile(1 - quantile))
-	lower = np.ceil(df['y1'].quantile(quantile))
+	upper = np.floor(df['y0'].quantile(1 - header_threshold))
+	lower = np.ceil(df['y1'].quantile(footer_threshold))
 	
 	# Calculate box boundaries (including header and footer)
 	x_min = np.floor(df['x0'].min())
