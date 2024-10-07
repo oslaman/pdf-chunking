@@ -1,5 +1,7 @@
 venv/
-output_embeddings.json
+output_*.json
+chunks_output/
+output/
 *.pdf
 *.log
 *.aux
