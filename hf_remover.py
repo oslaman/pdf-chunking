@@ -10,8 +10,11 @@ import re
 import spacy
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
+import os
+import shutil
 
 
+output_directory = 'chunks_output/'
 
 HEADER_THRESHOLD = 0.075  # 10% della pagina
 FOOTER_THRESHOLD = 0.9  # 90% della pagina
@@ -76,25 +79,24 @@ def detect_headers_footers(pdf_path):
 
     chunks, chunk_page_numbers = recursive_chunking_with_pages(text_with_pages)
 
-    metadata = {
-        "title": document.metadata.get("title", "Unknown"),
-        "author": document.metadata.get("author", "Unknown"),
-        "num_pages": len(document),
-        "num_chunks": len(chunks),
-    }
+    # metadata = {
+    #     "title": document.metadata.get("title", "Unknown"),
+    #     "author": document.metadata.get("author", "Unknown"),
+    #     "num_pages": len(document),
+    #     "num_chunks": len(chunks),
+    # }
 
-    output_data = {
-        "metadata": metadata,
-        "chunks": [{ "index": i, "page": chunk_page_numbers[i], "text": chunk } for i, chunk in enumerate(chunks)]
-    }
+    return [{ "index": i, "page": chunk_page_numbers[i], "text": chunk } for i, chunk in enumerate(chunks)]
 
-    json_output_path = "./output/output.json"
-    with open(json_output_path, 'w', encoding='utf-8') as json_file:
-        json.dump(output_data, json_file, ensure_ascii=False, indent=4)
 
-    txt_output_path = "./output/output.txt"
-    with open(txt_output_path, 'w', encoding='utf-8') as txt_file:
-        txt_file.write("\n".join([text for text, _ in text_with_pages]))
+def save_to_json(chunks):
+    if os.path.exists(output_directory):
+        shutil.rmtree(output_directory)
+    os.makedirs(output_directory, exist_ok=True)
+    for i, chunk in enumerate(chunks, start=1):
+        file_path = os.path.join(output_directory, f'chunk_{i}.json')
+        with open(file_path, 'w', encoding='utf-8') as file:
+            json.dump(chunk, file, ensure_ascii=False, indent=4)
 
 
 def recursive_chunking_with_pages(text_with_pages, chunk_size=800, chunk_overlap=300):
@@ -131,28 +133,21 @@ def recursive_chunking_with_pages(text_with_pages, chunk_size=800, chunk_overlap
 
 
 def create_embeddings(data):
-    for chunk in data['chunks']:
+    for chunk in data:
         chunk_content = chunk['text']
         embedding_vector = model.encode(chunk_content).tolist()
         chunk['embedding_of_chunk'] = embedding_vector 
 
-    with open('output_embeddings.json', 'w', encoding='utf-8') as file:
-        json.dump(data, file, ensure_ascii=False, indent=4)
-
-    print("Embeddings generated and saved to output_embeddings.json")
+    save_to_json(data)
 
 
 def main():
     pdf_path = "./examples/codice-civile.pdf"
     start_time = time.time()
-    rectangles = detect_headers_footers(pdf_path)
+    chunks = detect_headers_footers(pdf_path)
     end_time = time.time()
     print(f"Tempo impiegato per l'estrazione: {end_time - start_time} secondi")
-
-    with open('output/output.json', 'r', encoding='utf-8') as file:
-        data = json.load(file)
-
-    create_embeddings(data)
+    create_embeddings(chunks)
     
 
 if __name__ == "__main__":
