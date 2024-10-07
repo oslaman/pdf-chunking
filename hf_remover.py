@@ -9,6 +9,7 @@ import time
 import re
 import spacy
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from sentence_transformers import SentenceTransformer
 
 
 
@@ -18,11 +19,13 @@ FOOTER_THRESHOLD = 0.9  # 90% della pagina
 EXCLUDE_HEADERS = True
 EXCLUDE_FOOTERS = True
 
+model = SentenceTransformer('thenlper/gte-small')
+
 def detect_headers_footers(pdf_path):
     document = fitz.open(pdf_path)
     page_rectangles = []
     cropped_document = fitz.open()
-    text_with_pages = []  # Store tuples of (text, page_number)
+    text_with_pages = []
 
     for page_num in range(len(document)):
         page = document.load_page(page_num)
@@ -82,7 +85,7 @@ def detect_headers_footers(pdf_path):
 
     output_data = {
         "metadata": metadata,
-        "chunks": [{ "page": chunk_page_numbers[i], "text": chunk, "index": i } for i, chunk in enumerate(chunks)]
+        "chunks": [{ "index": i, "page": chunk_page_numbers[i], "text": chunk } for i, chunk in enumerate(chunks)]
     }
 
     json_output_path = "./output/output.json"
@@ -94,7 +97,7 @@ def detect_headers_footers(pdf_path):
         txt_file.write("\n".join([text for text, _ in text_with_pages]))
 
 
-def recursive_chunking_with_pages(text_with_pages, chunk_size=800, chunk_overlap=400):
+def recursive_chunking_with_pages(text_with_pages, chunk_size=800, chunk_overlap=300):
     all_text = ""
     page_boundaries = []
     current_position = 0
@@ -109,19 +112,7 @@ def recursive_chunking_with_pages(text_with_pages, chunk_size=800, chunk_overlap
         chunk_overlap=chunk_overlap,
         length_function=len,
         is_separator_regex=False,
-        separators=[
-            "\n\n",
-            "\n",
-            " ",
-            ".",
-            ",",
-            "\u200b",  # Zero-width space
-            "\uff0c",  # Fullwidth comma
-            "\u3001",  # Ideographic comma
-            "\uff0e",  # Fullwidth full stop
-            "\u3002",  # Ideographic full stop
-            "",
-        ],
+        separators=["\n\n", "\n", ".", "?", "!", " ", ""],
     ).create_documents([all_text])
     
     chunks = [doc.page_content for doc in result]
@@ -139,81 +130,29 @@ def recursive_chunking_with_pages(text_with_pages, chunk_size=800, chunk_overlap
     return chunks, chunk_page_numbers
 
 
-def fixed_size_chunking(text, chunk_size=100):
-    return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+def create_embeddings(data):
+    for chunk in data['chunks']:
+        chunk_content = chunk['text']
+        embedding_vector = model.encode(chunk_content).tolist()
+        chunk['embedding_of_chunk'] = embedding_vector 
 
+    with open('output_embeddings.json', 'w', encoding='utf-8') as file:
+        json.dump(data, file, ensure_ascii=False, indent=4)
 
-def split_text_into_chunks(text, chunk_size=300):
-    chunks = []
-    for i in range(0, len(text), chunk_size):
-        chunks.append(text[i:i + chunk_size])
-    return chunks
-
-
-def paragraph_level_chunking(text):
-    chunks = text.split('\n\n')
-    chunks = [chunk for chunk in chunks if chunk.strip() and not re.fullmatch(r'\d+', chunk.strip())]
-    return chunks
-
-
-# def recursive_chunking(text, chunk_size=1024):
-#     if len(text) <= chunk_size:
-#         return [text]
-#     else:
-#         mid = chunk_size
-#         while mid > 0 and text[mid] != ' ':
-#             mid -= 1
-#         return [text[:mid]] + recursive_chunking(text[mid+1:], chunk_size)
-
-
-def window_based_chunking(text, window_size=100, overlap=100):
-    chunks = []
-    start = 0
-    while start < len(text):
-        end = min(start + window_size, len(text))
-        chunks.append(text[start:end])
-        start += window_size - overlap
-    return chunks
-
-
-def tokenized_chunking(text, chunk_size=1000):
-    nltk.download('punkt_tab')
-    sentences = nltk.sent_tokenize(text)
-    chunks = []
-    current_chunk = []
-    current_length = 0
-    
-    for sentence in sentences:
-        sentence_length = len(sentence)
-        if current_length + sentence_length <= chunk_size:
-            current_chunk.append(sentence)
-            current_length += sentence_length
-        else:
-            chunks.append(" ".join(current_chunk))
-            current_chunk = [sentence]
-            current_length = sentence_length
-    
-    if current_chunk:
-        chunks.append(" ".join(current_chunk))
-    
-    return chunks
-
-
-def sliding_window_chunking(text, window_size, step_size):
-    chunks = []
-    for i in range(0, len(text), step_size):
-        chunk = text[i:i+window_size]
-        chunks.append(chunk)
-    return chunks
+    print("Embeddings generated and saved to output_embeddings.json")
 
 
 def main():
-    pdf_path = "./examples/codice-civile.pdf"
+    pdf_path = "./examples/fritzeng.pdf"
     start_time = time.time()
     rectangles = detect_headers_footers(pdf_path)
     end_time = time.time()
+    print(f"Tempo impiegato per l'estrazione: {end_time - start_time} secondi")
 
-    print(f"Tempo impiegato: {end_time - start_time} secondi")
+    with open('output/output.json', 'r', encoding='utf-8') as file:
+        data = json.load(file)
+
+    create_embeddings(data)
     
 
 if __name__ == "__main__":
