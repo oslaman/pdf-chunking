@@ -143,7 +143,7 @@ def create_embeddings(data):
 
 
 def main():
-    pdf_path = "./examples/fritzeng.pdf"
+    pdf_path = "./examples/codice-civile.pdf"
     start_time = time.time()
     rectangles = detect_headers_footers(pdf_path)
     end_time = time.time()
