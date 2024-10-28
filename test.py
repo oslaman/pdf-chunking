@@ -2,7 +2,6 @@ import fitz
 from joblib import Memory
 import numpy as np
 import pandas as pd
-#import plotly.express as px
 from sklearn.cluster import HDBSCAN, KMeans
 from fitz import Document, Page, Rect
 import os
@@ -11,15 +10,12 @@ header_threshold = 0.1
 footer_threshold = 0.9
 
 def remove_hf(pdf_path):
-	# Load the document using PyMuPDF (fitz)
 	document = fitz.open(pdf_path)
-	# Count pages
 	n_pages = document.page_count
 	
 	if n_pages == 1:
 		document.insert_file(pdf_path) 
 	
-	# Extract the coordinates of each block (paragraph)
 	coordinates = {'x0': [], 'y0': [], 'x1': [], 'y1': [], 'width': [], 'height': []}
 	for page in document:
 		blocks = page.get_text('blocks')
@@ -31,24 +27,20 @@ def remove_hf(pdf_path):
 			coordinates['width'].append(block[2] - block[0])
 			coordinates['height'].append(block[3] - block[1])
 	
-	# Store the block coordinates in a dataframe
 	df = pd.DataFrame(coordinates)
 
 	
-	# QUANTILE #
 	quantile = 0.15
 	
-	# Calculate upper and lower quantiles
 	upper = np.floor(df['y0'].quantile(1 - header_threshold))
 	lower = np.ceil(df['y1'].quantile(footer_threshold))
 	
-	# Calculate box boundaries (including header and footer)
 	x_min = np.floor(df['x0'].min())
 	x_max = np.ceil(df['x1'].max())
 	y_min = np.floor(df['y0'].min())
 	y_max = np.ceil(df['y1'].max())
 	
-	# HEADER/FOOTER FREQUENCY #
+	# Frequenza header/footer
 	hff = 0.8
 	
 	min_clust = min_cluster_size = int(np.floor(n_pages * hff))
@@ -59,7 +51,6 @@ def remove_hf(pdf_path):
 	hdbscan = HDBSCAN(min_cluster_size = min_clust)
 	df['clusters'] = hdbscan.fit_predict(df)
 	
-	# For each cluster, compute min, max and average
 	df_group = df.groupby('clusters').agg(
 						   avg_y0=('y0','mean'), avg_y1=('y1','mean'),
 	                       std_y0=('y0','std'), std_y1=('y1','std'),
@@ -80,7 +71,7 @@ def remove_hf(pdf_path):
 	if not pd.isnull(header):
 		y_min = header
 
-	print(x_min, y_min, x_max, y_max)
+	# Coordinate blocco del corpo del documento
 	return x_min, y_min, x_max, y_max
 
 def main():
