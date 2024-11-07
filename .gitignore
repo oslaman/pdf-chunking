@@ -4,3 +4,6 @@ output_embeddings.json
 *.log
 *.aux
 *.docx
+chunks_output/
+output/
+examples/

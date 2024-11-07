@@ -21,13 +21,27 @@ EXCLUDE_FOOTERS = True
 
 model = SentenceTransformer('thenlper/gte-small')
 
-def detect_headers_footers(pdf_path):
+def detect_headers_footers(pdf_path, exclude_range=None):
     document = fitz.open(pdf_path)
     page_rectangles = []
     cropped_document = fitz.open()
     text_with_pages = []
+    exclude_pages = []
+
+    try:    
+        if exclude_range:
+            exclude_pages = parse_range(exclude_range)
+        else:
+            exclude_pages = []
+    except:
+        print("Invalid range format. Please use comma-separated numbers or number ranges (e.g., 1,2,3-5).")
+        return []
 
     for page_num in range(len(document)):
+        page_to_exclude = page_num + 1
+        if page_to_exclude in exclude_pages:
+            continue
+        
         page = document.load_page(page_num)
         blocks = page.get_text("blocks")
         blocks = sorted(blocks, key=lambda b: b[1])
@@ -142,10 +156,19 @@ def create_embeddings(data):
     print("Embeddings generated and saved to output_embeddings.json")
 
 
+def parse_range(astr):
+    result=set()
+    for part in astr.split(','):
+        x=part.split('-')
+        result.update(range(int(x[0]),int(x[-1])+1))
+    return sorted(result)
+
+
 def main():
-    pdf_path = "./examples/codice-civile.pdf"
+    pdf_path = "./examples/fritzeng.pdf"
+    exclude_range = "1-3,5"
     start_time = time.time()
-    rectangles = detect_headers_footers(pdf_path)
+    rectangles = detect_headers_footers(pdf_path, exclude_range)
     end_time = time.time()
     print(f"Tempo impiegato per l'estrazione: {end_time - start_time} secondi")
 
