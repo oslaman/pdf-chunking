@@ -1,20 +1,15 @@
 import fitz  # PyMuPDF
 import json
-import nltk
-from transformers import BertTokenizer, BertModel
-import torch
 from sklearn.cluster import KMeans
 import numpy as np
 import time
-import re
-import spacy
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
 
 
 
-HEADER_THRESHOLD = 0.075  # 10% della pagina
-FOOTER_THRESHOLD = 0.9  # 90% della pagina
+HEADER_THRESHOLD = 0.075  # 10% of the page
+FOOTER_THRESHOLD = 0.9  # 90% of the page
 
 EXCLUDE_HEADERS = True
 EXCLUDE_FOOTERS = True
@@ -165,12 +160,13 @@ def parse_range(astr):
 
 
 def main():
-    pdf_path = "./examples/fritzeng.pdf"
+    pdf_path = "file.pdf"
     exclude_range = "1-3,5"
     start_time = time.time()
-    rectangles = detect_headers_footers(pdf_path, exclude_range)
+    detect_headers_footers(pdf_path, exclude_range)
     end_time = time.time()
-    print(f"Tempo impiegato per l'estrazione: {end_time - start_time} secondi")
+
+    print(f"Time taken for extraction: {end_time - start_time} seconds")
 
     with open('output/output.json', 'r', encoding='utf-8') as file:
         data = json.load(file)

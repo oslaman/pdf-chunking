@@ -1,18 +1,18 @@
 import fitz
-from joblib import Memory
 import numpy as np
 import pandas as pd
-#import plotly.express as px
-from sklearn.cluster import HDBSCAN, KMeans
+from sklearn.cluster import HDBSCAN
 from fitz import Document, Page, Rect
 import os
 
-header_threshold = 0.1
-footer_threshold = 0.9
+header_threshold = 0.1 # 10% of the page
+footer_threshold = 0.9 # 90% of the page
 
 def remove_hf(pdf_path):
+
 	# Load the document using PyMuPDF (fitz)
 	document = fitz.open(pdf_path)
+
 	# Count pages
 	n_pages = document.page_count
 	
@@ -48,7 +48,7 @@ def remove_hf(pdf_path):
 	y_min = np.floor(df['y0'].min())
 	y_max = np.ceil(df['y1'].max())
 	
-	# HEADER/FOOTER FREQUENCY #
+	# Header/Footer frequency #
 	hff = 0.8
 	
 	min_clust = min_cluster_size = int(np.floor(n_pages * hff))
@@ -84,7 +84,7 @@ def remove_hf(pdf_path):
 	return x_min, y_min, x_max, y_max
 
 def main():
-	file_path = 'meditations.pdf'
+	file_path = 'file.pdf'
 	x_min, y_min, x_max, y_max = remove_hf(file_path)
 	VISUALIZE = True
 	doc: Document = fitz.open(file_path)
@@ -95,10 +95,9 @@ def main():
 		if VISUALIZE:
 			page.draw_rect(rect, width=1.5, color=(1, 0, 0))
 		text = page.get_textbox(rect)
-		#print(text)
 	if VISUALIZE:
 		head, tail = os.path.split(file_path)
-		viz_name = os.path.join(head, "viz_" + tail)
+		viz_name = os.path.join(head, "edited_" + tail)
 		doc.save(viz_name)
 
 
