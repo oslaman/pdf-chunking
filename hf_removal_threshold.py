@@ -8,7 +8,7 @@ from sentence_transformers import SentenceTransformer
 
 
 
-HEADER_THRESHOLD = 0.075  # 10% of the page
+HEADER_THRESHOLD = 0.1  # 10% of the page
 FOOTER_THRESHOLD = 0.9  # 90% of the page
 
 EXCLUDE_HEADERS = True
@@ -16,6 +16,12 @@ EXCLUDE_FOOTERS = True
 
 model = SentenceTransformer('thenlper/gte-small')
 
+# Function to detect headers and footers
+# It takes a pdf path and an optional exclude range,
+# extracts the blocks for each page, sorts them by y-coordinate, 
+# ignores the blocks within the header and footer thresholds
+# and then creates a cropped pdf with the body of the pages,
+# a json with the chunks and the page numbers and a text file with the body of the pages
 def detect_headers_footers(pdf_path, exclude_range=None):
     document = fitz.open(pdf_path)
     page_rectangles = []
@@ -106,6 +112,9 @@ def detect_headers_footers(pdf_path, exclude_range=None):
         txt_file.write("\n".join([text for text, _ in text_with_pages]))
 
 
+# Function to recursively chunk the text with page numbers
+# It takes an array with a list of tuples, where each tuple contains the content of a page and it page number
+# and returns an array with the chunks and the page numbers
 def recursive_chunking_with_pages(text_with_pages, chunk_size=800, chunk_overlap=300):
     all_text = ""
     page_boundaries = []
@@ -139,6 +148,10 @@ def recursive_chunking_with_pages(text_with_pages, chunk_size=800, chunk_overlap
     return chunks, chunk_page_numbers
 
 
+
+# Function to create embeddings for the chunks
+# It takes the json with the chunks and the page numbers
+# and returns the json with the chunks and the page numbers and the embeddings
 def create_embeddings(data):
     for chunk in data['chunks']:
         chunk_content = chunk['text']
@@ -151,6 +164,7 @@ def create_embeddings(data):
     print("Embeddings generated and saved to output_embeddings.json")
 
 
+# Function to parse a range string into a list of page numbers
 def parse_range(astr):
     result=set()
     for part in astr.split(','):
